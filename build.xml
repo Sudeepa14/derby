@@ -58,7 +58,7 @@
 
   <target
       name="buildsource"
-      depends="checkCompilerLevel,init,prebuild,setCompilerProperties,felixStubs,shared,client,engine,storeless,tools,drda,optional,runner,build,versioninfo,localeinfo,binscripts"
+      depends="checkCompilerLevel,init,prebuild,setCompilerProperties,felixStubs,shared,client,engine,storeless,tools,drda,optional,runner,build,versioninfo,localeinfo,binscripts,generateSecurityPolicies"
       description="Compile the product source (does not build the tests)."
   />
   <target
@@ -66,6 +66,25 @@
       depends="buildsource,demo,testing,runmessagecheck"
       description="Compile all of the source, including tests as well as production code."
   />
+
+  <!-- Generate security policies and corresponding documentation -->
+  <!-- <target name="buildPolicyFiles" unless="messagesUpToDate" -->
+  <target
+      name="generateSecurityPolicies"
+      description="Build security policies."
+  >
+
+    <taskdef
+      name="generatePolicies"
+      classname="org.apache.derbyBuild.SecurityPolicyGenerator"
+      classpath="${out.build.dir}"
+    />
+
+    <generatePolicies
+      baseDirectory="${basedir}"
+    />
+
+  </target>
 
 <!-- ==================================================================== -->
 <!--                       Initialize targets                             -->
@@ -1099,6 +1118,11 @@
     <copy file="${javadoctools.dir}/logo/derby_logo64.png" 
           todir="${public.api.dir}/resources"/>     
 
+    <!-- Copy the module diagrams used by the overview -->
+    <copy todir="${public.api.dir}/resources">
+      <fileset dir="${javadoctools.dir}/moduleDiagrams"/>
+    </copy>
+
   </target>
 
 
@@ -1112,6 +1136,7 @@
       <arg value="-Xdoclint:none"/>
       <arg value="-private"/>
       <arg value="-breakiterator"/>
+      <arg value="-overview"/><arg value="${basedir}/published_api_overview.html"/>
       <arg value="-windowtitle"/><arg value="Apache Derby V${major}.${minor} Internals"/>
       <arg value="-header"/><arg value="Apache Derby ${major}.${minor}"/>
       <arg value="-footer"/><arg value="${javadoc.Footer}"/>
@@ -1128,6 +1153,11 @@
       <arg value="--show-module-contents"/><arg value="all"/>
       <arg value="--module"/><arg value="${module.name.commons},${module.name.engine},${module.name.client},${module.name.server},${module.name.tools},${module.name.optionaltools},${module.name.runner},${module.name.tests}"/>
     </exec>
+
+    <!-- Copy the module diagrams used by the module overviews -->
+    <copy todir="${out.javadoc.dir}/engine/resources">
+      <fileset dir="${javadoctools.dir}/moduleDiagrams"/>
+    </copy>
 
   </target>
 
@@ -1884,6 +1914,39 @@
          <param name="checkinComment" value="Check in SQLState tables as part of building a release."/>
          <param name="fileName" value="${refdir}/rrefexcept71493.dita"/>
       </antcall>
+
+   </target>
+
+   <!-- Checkin the generated security policy documentation to the docs client -->
+   <target name="copy-security-policy-docs">
+
+     <property name="sec.dir" value="${docs.root}/src/security"/>
+     <property name="gen.dita.dir" value="${generated.src.engine.dir}/${derby.dir}/security"/>
+
+     <copy todir="${sec.dir}">
+       <fileset dir="${gen.dita.dir}" includes="*.dita"/>
+     </copy>
+
+     <antcall target="checkinfile">
+        <param name="checkinComment" value="Check in rsecbasicclient.dita as part of building a release."/>
+        <param name="fileName" value="${sec.dir}/rsecbasicclient.dita"/>
+     </antcall>
+     <antcall target="checkinfile">
+        <param name="checkinComment" value="Check in rsecbasicengine.dita as part of building a release."/>
+        <param name="fileName" value="${sec.dir}/rsecbasicengine.dita"/>
+     </antcall>
+     <antcall target="checkinfile">
+        <param name="checkinComment" value="Check in rsecbasicserver.dita as part of building a release."/>
+        <param name="fileName" value="${sec.dir}/rsecbasicserver.dita"/>
+     </antcall>
+     <antcall target="checkinfile">
+        <param name="checkinComment" value="Check in rsecbasictools.dita as part of building a release."/>
+        <param name="fileName" value="${sec.dir}/rsecbasictools.dita"/>
+     </antcall>
+     <antcall target="checkinfile">
+        <param name="checkinComment" value="Check in rsecpolicysample.dita as part of building a release."/>
+        <param name="fileName" value="${sec.dir}/rsecpolicysample.dita"/>
+     </antcall>
 
    </target>
 
@@ -2915,6 +2978,9 @@ you should not have to do this.
 
         <!-- copy the generated sqlstate tables to the docs client and check it in -->
         <antcall target="copyerrordocs"/>
+
+        <!-- copy the generated policy file documentation to the docs client and check it in -->
+        <antcall target="copy-security-policy-docs"/>
 
         <!-- sync the clients to guarantee that we are up-to-date -->
         <antcall target="updatesvnclients"/>
